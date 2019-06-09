@@ -90,8 +90,28 @@ class DQN:
 
     def train(self, experience=None):
         if self.use_er:
+            if len(self.experience_memory) < self.batch_size:
+                return
             batches = random.choices(self.experience_memory, k=self.batch_size)
         else:
             batches = experience
-
-
+        states = np.array([exp[0] for exp in batches])
+        actions = np.array([exp[1] for exp in batches])
+        rewards = np.array([exp[2] for exp in batches])
+        next_states = np.array([exp[3] for exp in batches])
+        dones = np.array([exp[4] for exp in batches])
+        states = np.squeeze(states)
+        next_states = np.squeeze(next_states)
+        if self.use_double:
+            q_values_target = rewards + (1 - dones) * self.gamma * self.target_network.predict_on_batch(next_states)[0][
+                np.argmax(self.network.predict_on_batch(next_states), axis=1)]
+            q_tuples_target = self.network.predict_on_batch(states)[[np.arange(self.batch_size)], [actions]]
+            q_tuples_target[[np.arange(self.batch_size)], [actions]] = q_values_target
+        else:
+            rewards = np.squeeze(rewards)
+            dones = np.squeeze(dones)
+            actions = np.squeeze(actions)
+            q_values_target = rewards + (1 - dones) * self.gamma * np.amax(self.network.predict(next_states)[0])
+            q_tuples_target = self.network.predict(states)[actions]
+            q_tuples_target[actions] = q_values_target
+        self.network.fit(states, q_tuples_target, verbose=0, batch_size=32)
