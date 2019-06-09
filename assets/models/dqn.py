@@ -24,6 +24,22 @@ class DQN:
                  lr=LEARNING_RATE,
                  gamma=GAMMA,
                  tau=TAU):
+        """
+        Init all Class variables
+        :param action_space: The number of possible actions
+        :param observation_space: The length of the observation space
+        :param use_double: Flag to toggle double DQN
+        :param use_er: Flag to toggle Experience Replay
+        :param hidden: Number of neurons in the hidden layer
+        :param replay_size: Size of experience replay buffer
+        :param batch_size: Number of experiences to be sampled when training
+        :param epsilon: Initial value
+        :param epsilon_decay: Exponential Decay rate
+        :param epsilon_min: Minimum value
+        :param lr: Learning rate for the optimizer
+        :param gamma: Discount Factor
+        :param tau: Soft update parameter
+        """
         self.action_space = action_space
         self.observation_space = observation_space
         self.hidden = hidden
@@ -43,6 +59,10 @@ class DQN:
             self.batch_size = batch_size
 
     def _make_model(self):
+        """
+        Creates and compiles the model
+        :return: Model
+        """
         model = tf.keras.models.Sequential([
             tf.keras.layers.Dense(units=self.hidden, activation='relu', input_dim=self.observation_space),
             tf.keras.layers.Dense(units=self.action_space, activation='linear')
@@ -53,6 +73,10 @@ class DQN:
         return model
 
     def update_target_network(self):
+        """
+        Updates the target network with soft update factor tau
+        :return: None
+        """
         if not self.use_double:
             raise UnboundLocalError("Double DQN is disabled. Target Network not created")
         local_wts = np.array(self.network.get_weights())
@@ -60,9 +84,19 @@ class DQN:
         self.target_network.set_weights(target_wts + self.tau * (local_wts - target_wts))
 
     def anneal_hps(self):
+        """
+        Updates epsilon value over time
+        :return: None
+        """
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
     def get_action(self, state, evaluate=False):
+        """
+        Returns action based on epsilon greedy policy
+        :param state: Current state in
+        :param evaluate: Flag to toggle evaluation case
+        :return: Action to be taken
+        """
         if evaluate:
             q = self.network.predict(state)
             action = np.argmax(q[0])
@@ -89,6 +123,11 @@ class DQN:
         self.experience_memory.append((state, action, reward, next_state, done))
 
     def train(self, experience=None):
+        """
+        Updates the network weights by training with the experience gained
+        :param experience: Optional param when using single DQN
+        :return: None
+        """
         if self.use_er:
             if len(self.experience_memory) < self.batch_size:
                 return
